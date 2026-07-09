@@ -1,215 +1,360 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Memória Pokémon</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:#1a1a2e; font-family:'Segoe UI',sans-serif; display:flex; justify-content:center; align-items:center; min-height:100dvh; overflow:hidden; user-select:none; touch-action:manipulation; }
-  .game { width:100vw; height:100dvh; max-width:600px; background:linear-gradient(180deg,#1a1a2e,#16213e,#0f3460); display:flex; flex-direction:column; position:relative; overflow:hidden; }
-  .header { text-align:center; padding:8px 12px 4px; flex-shrink:0; font-size:clamp(14px,3vw,18px); color:#f1c40f; font-weight:900; letter-spacing:1px; display:flex; justify-content:space-between; }
-  .header span { font-size:clamp(11px,2.5vw,14px); color:#888; font-weight:400; }
-  .header .score { color:#4ecca3; }
-  .grid { flex:1; display:grid; grid-template-columns:repeat(4,1fr); gap:clamp(4px,1.5vw,8px); padding:8px; align-content:center; }
-  .card { aspect-ratio:1; border-radius:10px; cursor:pointer; perspective:800px; }
-  .card-inner { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1); }
-  .card.flipped .card-inner { transform:rotateY(180deg); }
-  .card.matched .card-inner { transform:rotateY(180deg); }
-  .card.removed { visibility:hidden; pointer-events:none; }
-  .card-front, .card-back { position:absolute; inset:0; border-radius:10px; backface-visibility:hidden; display:flex; align-items:center; justify-content:center; }
-  .card-back { background:linear-gradient(135deg,#e74c3c,#c0392b); border:2px solid #ff6b6b; font-size:clamp(24px,6vw,40px); }
-  .card-back::after { content:'?'; font-size:clamp(28px,7vw,48px); font-weight:900; color:rgba(255,255,255,0.3); }
-  .card-front { background:#16213e; border:2px solid #4ecca3; transform:rotateY(180deg); }
-  .card-front img { width:80%; height:80%; object-fit:contain; }
-  
-  .card.matched .card-front { border-color:#f1c40f; background:rgba(241,196,15,0.1); }
-  .card:not(.flipped):not(.matched):hover .card-inner { transform:scale(1.03); }
-  
-  /* Match reveal */
-  .reveal { position:absolute; inset:0; z-index:100; display:flex; flex-direction:column; justify-content:center; align-items:center; background:rgba(10,10,20,0.9); opacity:0; pointer-events:none; transition:opacity 0.3s; }
-  .reveal.active { opacity:1; pointer-events:all; }
-  .reveal img { width:clamp(120px,30vw,220px); height:clamp(120px,30vw,220px); object-fit:contain; animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1); }
-  .reveal .name { font-size:clamp(20px,5vw,36px); font-weight:700; color:#f1c40f; margin-top:8px; }
-  @keyframes popIn { 0%{transform:scale(0) rotate(-20deg);opacity:0} 100%{transform:scale(1) rotate(0);opacity:1} }
-  
-  /* Win overlay */
-  .win-overlay { position:absolute; inset:0; z-index:200; background:rgba(15,52,96,0.93); display:flex; flex-direction:column; justify-content:center; align-items:center; opacity:0; pointer-events:none; transition:opacity 0.5s; padding:30px; text-align:center; }
-  .win-overlay.active { opacity:1; pointer-events:all; }
-  .win-overlay h2 { font-size:clamp(28px,8vw,48px); color:#4ecca3; margin:4px 0; }
-  .win-overlay .sub { color:#aaa; font-size:clamp(14px,3vw,18px); margin-bottom:12px; }
-  .win-overlay .stats { color:#888; font-size:clamp(12px,2.5vw,14px); margin-bottom:16px; }
-  .win-overlay button { padding:12px 36px; font-size:clamp(14px,3vw,18px); font-weight:700; background:#4ecca3; color:#1a1a2e; border:none; border-radius:12px; cursor:pointer; letter-spacing:1px; }
-  
-  .start-overlay { position:absolute; inset:0; z-index:300; background:rgba(15,52,96,0.95); display:flex; flex-direction:column; justify-content:center; align-items:center; padding:30px; text-align:center; transition:opacity 0.5s; }
-  .start-overlay.hidden { opacity:0; pointer-events:none; }
-  .start-overlay .logo { font-size:clamp(50px,14vw,80px); margin-bottom:8px; }
-  .start-overlay h2 { font-size:clamp(24px,7vw,40px); color:#f1c40f; margin-bottom:4px; }
-  .start-overlay .start-btn { padding:16px 48px; font-size:clamp(18px,4vw,24px); font-weight:700; background:linear-gradient(135deg,#f1c40f,#f39c12); color:#1a1a2e; border:none; border-radius:16px; cursor:pointer; letter-spacing:2px; box-shadow:0 6px 25px rgba(241,196,15,0.3); margin-top:16px; }
-  
-  @media (max-width:400px) {
-    .grid { gap:3px; padding:4px; }
-    .card-back { border-width:1.5px; }
-  }
-</style>
-</head>
-<body>
-<div class="game">
-  <div class="header">
-    <span>🃏 Memória</span>
-    <span class="score" id="scoreDisplay">0/8 ✓</span>
-    <span id="attemptsDisplay">0 tentativas</span>
-  </div>
-  <div class="grid" id="grid"></div>
-  <div class="reveal" id="revealOverlay">
-    <img id="revealImg" src="" alt="">
-    <div class="name" id="revealName"></div>
-  </div>
-  <div class="win-overlay" id="winOverlay">
-    <h2>🏆 Parabéns!</h2>
-    <div class="sub">Completaste o jogo da memória!</div>
-    <div class="stats" id="finalStats"></div>
-    <button onclick="startGame()">Jogar outra vez →</button>
-  </div>
-  <div class="start-overlay" id="startOverlay">
-    <div class="logo"><img src="assets/icon.png" style="width:clamp(60px,16vw,120px);height:clamp(60px,16vw,120px);border-radius:16px"></div>
-    <h2>Memória Pokémon</h2>
-    <p>Encontra os pares de Pokémon!</p>
-    <button class="start-btn" onclick="startGame()">▶ COMEÇAR</button>
-  </div>
-</div>
-<script>
+1|<!DOCTYPE html>
+2|<html lang="pt">
+3|<head>
+4|<meta charset="UTF-8">
+5|<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+6|<title>Memória Pokémon</title>
+7|<style>
+8|  * { margin:0; padding:0; box-sizing:border-box; }
+9|  body { background:#1a1a2e; font-family:'Segoe UI',sans-serif; display:flex; justify-content:center; align-items:center; min-height:100dvh; overflow:hidden; user-select:none; touch-action:manipulation; }
+10|  .game { width:100vw; height:100dvh; max-width:600px; background:linear-gradient(180deg,#1a1a2e,#16213e,#0f3460); display:flex; flex-direction:column; position:relative; overflow:hidden; }
+11|  .header { text-align:center; padding:8px 12px 4px; flex-shrink:0; font-size:clamp(14px,3vw,18px); color:#f1c40f; font-weight:900; letter-spacing:1px; display:flex; justify-content:space-between; }
+12|  .header span { font-size:clamp(11px,2.5vw,14px); color:#888; font-weight:400; }
+13|  .header .score { color:#4ecca3; }
+14|  .grid { flex:1; display:grid; grid-template-columns:repeat(4,1fr); gap:clamp(4px,1.5vw,8px); padding:8px; align-content:center; }
+15|  .card { aspect-ratio:1; border-radius:10px; cursor:pointer; perspective:800px; }
+16|  .card-inner { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+17|  .card.flipped .card-inner { transform:rotateY(180deg); }
+18|  .card.matched .card-inner { transform:rotateY(180deg); }
+19|  .card.removed { visibility:hidden; pointer-events:none; }
+20|  .card-front, .card-back { position:absolute; inset:0; border-radius:10px; backface-visibility:hidden; display:flex; align-items:center; justify-content:center; }
+21|  .card-back { background:linear-gradient(135deg,#e74c3c,#c0392b); border:2px solid #ff6b6b; font-size:clamp(24px,6vw,40px); }
+22|  .card-back::after { content:'?'; font-size:clamp(28px,7vw,48px); font-weight:900; color:rgba(255,255,255,0.3); }
+23|  .card-front { background:#16213e; border:2px solid #4ecca3; transform:rotateY(180deg); }
+24|  .card-front img { width:80%; height:80%; object-fit:contain; }
+25|  
+26|  .card.matched .card-front { border-color:#f1c40f; background:rgba(241,196,15,0.1); }
+27|  .card:not(.flipped):not(.matched):hover .card-inner { transform:scale(1.03); }
+28|  
+29|  /* Match reveal */
+30|  .reveal { position:absolute; inset:0; z-index:100; display:flex; flex-direction:column; justify-content:center; align-items:center; background:rgba(10,10,20,0.9); opacity:0; pointer-events:none; transition:opacity 0.3s; }
+31|  .reveal.active { opacity:1; pointer-events:all; }
+32|  .reveal img { width:clamp(120px,30vw,220px); height:clamp(120px,30vw,220px); object-fit:contain; animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+33|  .reveal .name { font-size:clamp(20px,5vw,36px); font-weight:700; color:#f1c40f; margin-top:8px; }
+34|  @keyframes popIn { 0%{transform:scale(0) rotate(-20deg);opacity:0} 100%{transform:scale(1) rotate(0);opacity:1} }
+35|  
+36|  /* Win overlay */
+37|  .win-overlay { position:absolute; inset:0; z-index:200; background:rgba(15,52,96,0.93); display:flex; flex-direction:column; justify-content:center; align-items:center; opacity:0; pointer-events:none; transition:opacity 0.5s; padding:30px; text-align:center; }
+38|  .win-overlay.active { opacity:1; pointer-events:all; }
+39|  .win-overlay h2 { font-size:clamp(28px,8vw,48px); color:#4ecca3; margin:4px 0; }
+40|  .win-overlay .sub { color:#aaa; font-size:clamp(14px,3vw,18px); margin-bottom:12px; }
+41|  .win-overlay .stats { color:#888; font-size:clamp(12px,2.5vw,14px); margin-bottom:16px; }
+42|  .win-overlay button { padding:12px 36px; font-size:clamp(14px,3vw,18px); font-weight:700; background:#4ecca3; color:#1a1a2e; border:none; border-radius:12px; cursor:pointer; letter-spacing:1px; }
+43|  
+44|  .start-overlay { position:absolute; inset:0; z-index:300; background:rgba(15,52,96,0.95); display:flex; flex-direction:column; justify-content:center; align-items:center; padding:30px; text-align:center; transition:opacity 0.5s; }
+45|  .start-overlay.hidden { opacity:0; pointer-events:none; }
+46|  .start-overlay .logo { font-size:clamp(50px,14vw,80px); margin-bottom:8px; }
+47|  .start-overlay h2 { font-size:clamp(24px,7vw,40px); color:#f1c40f; margin-bottom:4px; }
+48|  .start-overlay .start-btn { padding:16px 48px; font-size:clamp(18px,4vw,24px); font-weight:700; background:linear-gradient(135deg,#f1c40f,#f39c12); color:#1a1a2e; border:none; border-radius:16px; cursor:pointer; letter-spacing:2px; box-shadow:0 6px 25px rgba(241,196,15,0.3); margin-top:16px; }
+49|  
+50|  @media (max-width:400px) {
+51|    .grid { gap:3px; padding:4px; }
+52|    .card-back { border-width:1.5px; }
+53|  }
+54|</style>
+55|</head>
+56|<body>
+57|<div class="game">
+58|  <div class="header">
+59|    <span>🃏 Memória</span>
+60|    <span class="score" id="scoreDisplay">0/8 ✓</span>
+61|    <span id="attemptsDisplay">0 tentativas</span>
+62|  </div>
+63|  <div class="grid" id="grid"></div>
+64|  <div class="reveal" id="revealOverlay">
+65|    <img id="revealImg" src="" alt="">
+66|    <div class="name" id="revealName"></div>
+67|  </div>
+68|  <div class="win-overlay" id="winOverlay">
+69|    <h2>🏆 Parabéns!</h2>
+70|    <div class="sub">Completaste o jogo da memória!</div>
+71|    <div class="stats" id="finalStats"></div>
+72|    <button onclick="startGame()">Jogar outra vez →</button>
+73|  </div>
+74|  <div class="start-overlay" id="startOverlay">
+75|    <div class="logo"><img src="assets/icon.png" style="width:clamp(60px,16vw,120px);height:clamp(60px,16vw,120px);border-radius:16px"></div>
+76|    <h2>Memória Pokémon</h2>
+77|    <p>Encontra os pares de Pokémon!</p>
+78|    <button class="start-btn" onclick="startGame()">▶ COMEÇAR</button>
+79|  </div>
+80|</div>
+81|<script>
 const POKEMON = [
-  {name:'Pikachu',file:'pikachu.png'},
+  {name:'Abra',file:'abra.png'},
+  {name:'Aerodactyl',file:'aerodactyl.png'},
+  {name:'Alakazam',file:'alakazam.png'},
+  {name:'Arbok',file:'arbok.png'},
+  {name:'Arcanine',file:'arcanine.png'},
+  {name:'Articuno',file:'articuno.png'},
+  {name:'Beedrill',file:'beedrill.png'},
+  {name:'Bellsprout',file:'bellsprout.png'},
+  {name:'Blastoise',file:'blastoise.png'},
+  {name:'Bulbasaur',file:'bulbasaur.png'},
+  {name:'Butterfree',file:'butterfree.png'},
+  {name:'Caterpie',file:'caterpie.png'},
+  {name:'Chansey',file:'chansey.png'},
   {name:'Charizard',file:'charizard.png'},
-  {name:'Eevee',file:'eevee.png'},
-  {name:'Gengar',file:'gengar.png'},
-  {name:'Mewtwo',file:'mewtwo.png'},
+  {name:'Charmander',file:'charmander.png'},
+  {name:'Charmeleon',file:'charmeleon.png'},
+  {name:'Clefable',file:'clefable.png'},
+  {name:'Clefairy',file:'clefairy.png'},
+  {name:'Cloyster',file:'cloyster.png'},
+  {name:'Cubone',file:'cubone.png'},
+  {name:'Dewgong',file:'dewgong.png'},
+  {name:'Diglett',file:'diglett.png'},
+  {name:'Ditto',file:'ditto.png'},
+  {name:'Dodrio',file:'dodrio.png'},
+  {name:'Doduo',file:'doduo.png'},
+  {name:'Dragonair',file:'dragonair.png'},
   {name:'Dragonite',file:'dragonite.png'},
-  {name:'Lucario',file:'lucario.png'},
-  {name:'Snorlax',file:'snorlax.png'},
+  {name:'Dratini',file:'dratini.png'},
+  {name:'Drowzee',file:'drowzee.png'},
+  {name:'Dugtrio',file:'dugtrio.png'},
+  {name:'Eevee',file:'eevee.png'},
+  {name:'Ekans',file:'ekans.png'},
+  {name:'Electabuzz',file:'electabuzz.png'},
+  {name:'Electrode',file:'electrode.png'},
+  {name:'Exeggcute',file:'exeggcute.png'},
+  {name:'Exeggutor',file:'exeggutor.png'},
+  {name:'Farfetchd',file:'farfetchd.png'},
+  {name:'Fearow',file:'fearow.png'},
+  {name:'Flareon',file:'flareon.png'},
+  {name:'Gastly',file:'gastly.png'},
+  {name:'Gengar',file:'gengar.png'},
+  {name:'Geodude',file:'geodude.png'},
+  {name:'Gloom',file:'gloom.png'},
+  {name:'Golbat',file:'golbat.png'},
+  {name:'Goldeen',file:'goldeen.png'},
+  {name:'Golduck',file:'golduck.png'},
+  {name:'Golem',file:'golem.png'},
+  {name:'Graveler',file:'graveler.png'},
   {name:'Greninja',file:'greninja.png'},
+  {name:'Grimer',file:'grimer.png'},
+  {name:'Growlithe',file:'growlithe.png'},
+  {name:'Gyarados',file:'gyarados.png'},
+  {name:'Haunter',file:'haunter.png'},
+  {name:'Hitmonchan',file:'hitmonchan.png'},
+  {name:'Hitmonlee',file:'hitmonlee.png'},
+  {name:'Horsea',file:'horsea.png'},
+  {name:'Hypno',file:'hypno.png'},
   {name:'Infernape',file:'infernape.png'},
+  {name:'Ivysaur',file:'ivysaur.png'},
+  {name:'Jigglypuff',file:'jigglypuff.png'},
+  {name:'Jolteon',file:'jolteon.png'},
+  {name:'Jynx',file:'jynx.png'},
+  {name:'Kabuto',file:'kabuto.png'},
+  {name:'Kabutops',file:'kabutops.png'},
+  {name:'Kadabra',file:'kadabra.png'},
+  {name:'Kakuna',file:'kakuna.png'},
+  {name:'Kangaskhan',file:'kangaskhan.png'},
+  {name:'Kingler',file:'kingler.png'},
+  {name:'Koffing',file:'koffing.png'},
+  {name:'Krabby',file:'krabby.png'},
+  {name:'Lapras',file:'lapras.png'},
+  {name:'Lickitung',file:'lickitung.png'},
+  {name:'Lucario',file:'lucario.png'},
+  {name:'Machamp',file:'machamp.png'},
+  {name:'Machoke',file:'machoke.png'},
+  {name:'Machop',file:'machop.png'},
+  {name:'Magikarp',file:'magikarp.png'},
+  {name:'Magmar',file:'magmar.png'},
+  {name:'Magnemite',file:'magnemite.png'},
+  {name:'Magneton',file:'magneton.png'},
+  {name:'Mankey',file:'mankey.png'},
+  {name:'Marowak',file:'marowak.png'},
+  {name:'Meowth',file:'meowth.png'},
+  {name:'Metapod',file:'metapod.png'},
+  {name:'Mew',file:'mew.png'},
+  {name:'Mewtwo',file:'mewtwo.png'},
+  {name:'Moltres',file:'moltres.png'},
+  {name:'Mr Mime',file:'mr_mime.png'},
+  {name:'Muk',file:'muk.png'},
+  {name:'Nidoking',file:'nidoking.png'},
+  {name:'Nidoqueen',file:'nidoqueen.png'},
+  {name:'Nidoranf',file:'nidoranf.png'},
+  {name:'Nidoranm',file:'nidoranm.png'},
+  {name:'Nidorina',file:'nidorina.png'},
+  {name:'Nidorino',file:'nidorino.png'},
+  {name:'Ninetales',file:'ninetales.png'},
+  {name:'Oddish',file:'oddish.png'},
+  {name:'Omanyte',file:'omanyte.png'},
+  {name:'Omastar',file:'omastar.png'},
+  {name:'Onix',file:'onix.png'},
+  {name:'Paras',file:'paras.png'},
+  {name:'Parasect',file:'parasect.png'},
+  {name:'Persian',file:'persian.png'},
+  {name:'Pidgeot',file:'pidgeot.png'},
+  {name:'Pidgeotto',file:'pidgeotto.png'},
+  {name:'Pidgey',file:'pidgey.png'},
+  {name:'Pikachu',file:'pikachu.png'},
+  {name:'Pinsir',file:'pinsir.png'},
+  {name:'Poliwag',file:'poliwag.png'},
+  {name:'Poliwhirl',file:'poliwhirl.png'},
+  {name:'Poliwrath',file:'poliwrath.png'},
+  {name:'Ponyta',file:'ponyta.png'},
+  {name:'Porygon',file:'porygon.png'},
+  {name:'Primeape',file:'primeape.png'},
+  {name:'Psyduck',file:'psyduck.png'},
+  {name:'Raichu',file:'raichu.png'},
+  {name:'Rapidash',file:'rapidash.png'},
+  {name:'Raticate',file:'raticate.png'},
+  {name:'Rattata',file:'rattata.png'},
+  {name:'Rhydon',file:'rhydon.png'},
+  {name:'Rhyhorn',file:'rhyhorn.png'},
+  {name:'Sandshrew',file:'sandshrew.png'},
+  {name:'Sandslash',file:'sandslash.png'},
+  {name:'Scyther',file:'scyther.png'},
+  {name:'Seadra',file:'seadra.png'},
+  {name:'Seaking',file:'seaking.png'},
+  {name:'Seel',file:'seel.png'},
+  {name:'Shellder',file:'shellder.png'},
+  {name:'Slowbro',file:'slowbro.png'},
+  {name:'Slowpoke',file:'slowpoke.png'},
+  {name:'Snorlax',file:'snorlax.png'},
+  {name:'Spearow',file:'spearow.png'},
+  {name:'Squirtle',file:'squirtle.png'},
+  {name:'Starmie',file:'starmie.png'},
+  {name:'Staryu',file:'staryu.png'},
+  {name:'Tangela',file:'tangela.png'},
+  {name:'Tauros',file:'tauros.png'},
+  {name:'Tentacool',file:'tentacool.png'},
+  {name:'Tentacruel',file:'tentacruel.png'},
+  {name:'Vaporeon',file:'vaporeon.png'},
+  {name:'Venomoth',file:'venomoth.png'},
+  {name:'Venonat',file:'venonat.png'},
+  {name:'Venusaur',file:'venusaur.png'},
+  {name:'Victreebel',file:'victreebel.png'},
+  {name:'Vileplume',file:'vileplume.png'},
+  {name:'Voltorb',file:'voltorb.png'},
+  {name:'Vulpix',file:'vulpix.png'},
+  {name:'Wartortle',file:'wartortle.png'},
+  {name:'Weedle',file:'weedle.png'},
+  {name:'Weepinbell',file:'weepinbell.png'},
+  {name:'Weezing',file:'weezing.png'},
+  {name:'Wigglytuff',file:'wigglytuff.png'},
+  {name:'Zapdos',file:'zapdos.png'},
+  {name:'Zubat',file:'zubat.png'},
 ];
-
-let cards = [], flipped = [], matched = 0, attempts = 0, lock = false;
-let audioInit = false, audioCtx = null;
-
-function initAudio() {
-  if (audioInit) return;
-  audioInit = true;
-  try { audioCtx = new (window.AudioContext||window.webkitAudioContext)(); if (audioCtx.state==='suspended') audioCtx.resume(); } catch(e){}
-}
-
-function speak(text, lang, cb) {
-  if (!window.speechSynthesis) { if(cb)cb(); return; }
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = lang || 'pt-PT'; u.rate = 0.85;
-  if (cb) u.onend = cb;
-  window.speechSynthesis.speak(u);
-}
-
-function sfxFlip() {
-  try { if(!audioCtx)return; var o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='sine'; o.frequency.setValueAtTime(600,audioCtx.currentTime); o.frequency.linearRampToValueAtTime(900,audioCtx.currentTime+0.1); g.gain.setValueAtTime(0.1,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.15); o.connect(g);g.connect(audioCtx.destination); o.start();o.stop(audioCtx.currentTime+0.15); }catch(e){}
-}
-function sfxMatch() {
-  try { if(!audioCtx)return; var o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='triangle'; o.frequency.setValueAtTime(523,audioCtx.currentTime); o.frequency.linearRampToValueAtTime(784,audioCtx.currentTime+0.2); o.frequency.linearRampToValueAtTime(1047,audioCtx.currentTime+0.4); g.gain.setValueAtTime(0.2,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.5); o.connect(g);g.connect(audioCtx.destination); o.start();o.stop(audioCtx.currentTime+0.5); }catch(e){}
-}
-function sfxWrong() {
-  try { if(!audioCtx)return; var o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='square'; o.frequency.value=250; g.gain.setValueAtTime(0.1,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.2); o.connect(g);g.connect(audioCtx.destination); o.start();o.stop(audioCtx.currentTime+0.2); }catch(e){}
-}
-function sfxWin() {
-  try { if(!audioCtx)return; var o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='triangle'; o.frequency.setValueAtTime(523,audioCtx.currentTime); o.frequency.linearRampToValueAtTime(659,audioCtx.currentTime+0.15); o.frequency.linearRampToValueAtTime(784,audioCtx.currentTime+0.3); o.frequency.linearRampToValueAtTime(1047,audioCtx.currentTime+0.5); g.gain.setValueAtTime(0.2,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.7); o.connect(g);g.connect(audioCtx.destination); o.start();o.stop(audioCtx.currentTime+0.7); }catch(e){}
-}
-
-function shuffle(a) { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a; }
-
-function startGame() {
-  initAudio();
-  document.getElementById('startOverlay').classList.add('hidden');
-  document.getElementById('winOverlay').classList.remove('active');
-  matched=0; attempts=0; flipped=[]; lock=false;
-  document.getElementById('scoreDisplay').textContent='0/8 ✓';
-  document.getElementById('attemptsDisplay').textContent='0 tentativas';
-  
-  // Pick 8 random Pokemon
-  const picked = shuffle([...POKEMON]).slice(0,8);
-  cards = shuffle([...picked, ...picked]).map((p,i)=>({...p,id:i}));
-  
-  const grid = document.getElementById('grid');
-  grid.innerHTML = '';
-  cards.forEach((c,i) => {
-    const div = document.createElement('div');
-    div.className = 'card';
-    div.dataset.idx = i;
-    div.innerHTML = `<div class="card-inner"><div class="card-front"><img src="assets/${c.file}" alt="${c.name}"></div><div class="card-back"></div></div>`;
-    div.addEventListener('click', () => flipCard(i));
-    grid.appendChild(div);
-  });
-  
-  // Speak first hint
-  setTimeout(() => speak('Encontra os pares de Pokémon!', 'pt-PT'), 400);
-}
-
-function flipCard(idx) {
-  if (lock) return;
-  const el = document.querySelectorAll('.card')[idx];
-  if (!el || el.classList.contains('flipped') || el.classList.contains('matched')) return;
-  
-  sfxFlip();
-  el.classList.add('flipped');
-  flipped.push(idx);
-  
-  if (flipped.length === 2) {
-    lock = true;
-    attempts++;
-    document.getElementById('attemptsDisplay').textContent = attempts + ' tentativas';
-    checkMatch();
-  }
-}
-
-function checkMatch() {
-  const [a,b] = flipped;
-  if (cards[a].name === cards[b].name) {
-    // Match!
-    setTimeout(() => {
-      sfxMatch();
-      const els = document.querySelectorAll('.card');
-      els[a].classList.add('matched');
-      els[b].classList.add('matched');
-      matched++;
-      document.getElementById('scoreDisplay').textContent = matched + '/8 ✓';
-      
-      // Show Pokemon reveal
-      const poke = cards[a];
-      document.getElementById('revealImg').src = 'assets/' + poke.file;
-      document.getElementById('revealName').textContent = poke.name;
-      document.getElementById('revealOverlay').classList.add('active');
-      speak(poke.name, 'en-US', () => {
-        setTimeout(() => {
-          document.getElementById('revealOverlay').classList.remove('active');
-          flipped = []; lock = false;
-          
-          if (matched === 8) {
-            sfxWin();
-            document.getElementById('finalStats').textContent = 'Completaste em ' + attempts + ' tentativas!';
-            document.getElementById('winOverlay').classList.add('active');
-            speak('Parabéns! Completaste o jogo da memória!');
-          }
-        }, 400);
-      });
-    }, 300);
-  } else {
-    setTimeout(() => {
-      sfxWrong();
-      const els = document.querySelectorAll('.card');
-      els[a].classList.remove('flipped');
-      els[b].classList.remove('flipped');
-      flipped = []; lock = false;
-    }, 800);
-  }
-}
-</script>
-</body>
-</html>
+94|
+95|let cards = [], flipped = [], matched = 0, attempts = 0, lock = false;
+96|let audioInit = false, audioCtx = null;
+97|
+98|function initAudio() {
+99|  if (audioInit) return;
+100|  audioInit = true;
+101|  try { audioCtx = new (window.AudioContext||window.webkitAudioContext)(); if (audioCtx.state==='suspended') audioCtx.resume(); } catch(e){}
+102|}
+103|
+104|function speak(text, lang, cb) {
+105|  if (!window.speechSynthesis) { if(cb)cb(); return; }
+106|  window.speechSynthesis.cancel();
+107|  const u = new SpeechSynthesisUtterance(text);
+108|  u.lang = lang || 'pt-PT'; u.rate = 0.85;
+109|  if (cb) u.onend = cb;
+110|  window.speechSynthesis.speak(u);
+111|}
+112|
+113|function sfxFlip() {
+114|  try { if(!audioCtx)return; var o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='sine'; o.frequency.setValueAtTime(600,audioCtx.currentTime); o.frequency.linearRampToValueAtTime(900,audioCtx.currentTime+0.1); g.gain.setValueAtTime(0.1,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.15); o.connect(g);g.connect(audioCtx.destination); o.start();o.stop(audioCtx.currentTime+0.15); }catch(e){}
+115|}
+116|function sfxMatch() {
+117|  try { if(!audioCtx)return; var o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='triangle'; o.frequency.setValueAtTime(523,audioCtx.currentTime); o.frequency.linearRampToValueAtTime(784,audioCtx.currentTime+0.2); o.frequency.linearRampToValueAtTime(1047,audioCtx.currentTime+0.4); g.gain.setValueAtTime(0.2,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.5); o.connect(g);g.connect(audioCtx.destination); o.start();o.stop(audioCtx.currentTime+0.5); }catch(e){}
+118|}
+119|function sfxWrong() {
+120|  try { if(!audioCtx)return; var o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='square'; o.frequency.value=250; g.gain.setValueAtTime(0.1,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.2); o.connect(g);g.connect(audioCtx.destination); o.start();o.stop(audioCtx.currentTime+0.2); }catch(e){}
+121|}
+122|function sfxWin() {
+123|  try { if(!audioCtx)return; var o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='triangle'; o.frequency.setValueAtTime(523,audioCtx.currentTime); o.frequency.linearRampToValueAtTime(659,audioCtx.currentTime+0.15); o.frequency.linearRampToValueAtTime(784,audioCtx.currentTime+0.3); o.frequency.linearRampToValueAtTime(1047,audioCtx.currentTime+0.5); g.gain.setValueAtTime(0.2,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.7); o.connect(g);g.connect(audioCtx.destination); o.start();o.stop(audioCtx.currentTime+0.7); }catch(e){}
+124|}
+125|
+126|function shuffle(a) { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a; }
+127|
+128|function startGame() {
+129|  initAudio();
+130|  document.getElementById('startOverlay').classList.add('hidden');
+131|  document.getElementById('winOverlay').classList.remove('active');
+132|  matched=0; attempts=0; flipped=[]; lock=false;
+133|  document.getElementById('scoreDisplay').textContent='0/8 ✓';
+134|  document.getElementById('attemptsDisplay').textContent='0 tentativas';
+135|  
+136|  // Pick 8 random Pokemon
+137|  const picked = shuffle([...POKEMON]).slice(0,8);
+138|  cards = shuffle([...picked, ...picked]).map((p,i)=>({...p,id:i}));
+139|  
+140|  const grid = document.getElementById('grid');
+141|  grid.innerHTML = '';
+142|  cards.forEach((c,i) => {
+143|    const div = document.createElement('div');
+144|    div.className = 'card';
+145|    div.dataset.idx = i;
+146|    div.innerHTML = `<div class="card-inner"><div class="card-front"><img src="assets/${c.file}" alt="${c.name}"></div><div class="card-back"></div></div>`;
+147|    div.addEventListener('click', () => flipCard(i));
+148|    grid.appendChild(div);
+149|  });
+150|  
+151|  // Speak first hint
+152|  setTimeout(() => speak('Encontra os pares de Pokémon!', 'pt-PT'), 400);
+153|}
+154|
+155|function flipCard(idx) {
+156|  if (lock) return;
+157|  const el = document.querySelectorAll('.card')[idx];
+158|  if (!el || el.classList.contains('flipped') || el.classList.contains('matched')) return;
+159|  
+160|  sfxFlip();
+161|  el.classList.add('flipped');
+162|  flipped.push(idx);
+163|  
+164|  if (flipped.length === 2) {
+165|    lock = true;
+166|    attempts++;
+167|    document.getElementById('attemptsDisplay').textContent = attempts + ' tentativas';
+168|    checkMatch();
+169|  }
+170|}
+171|
+172|function checkMatch() {
+173|  const [a,b] = flipped;
+174|  if (cards[a].name === cards[b].name) {
+175|    // Match!
+176|    setTimeout(() => {
+177|      sfxMatch();
+178|      const els = document.querySelectorAll('.card');
+179|      els[a].classList.add('matched');
+180|      els[b].classList.add('matched');
+181|      matched++;
+182|      document.getElementById('scoreDisplay').textContent = matched + '/8 ✓';
+183|      
+184|      // Show Pokemon reveal
+185|      const poke = cards[a];
+186|      document.getElementById('revealImg').src = 'assets/' + poke.file;
+187|      document.getElementById('revealName').textContent = poke.name;
+188|      document.getElementById('revealOverlay').classList.add('active');
+189|      speak(poke.name, 'en-US', () => {
+190|        setTimeout(() => {
+191|          document.getElementById('revealOverlay').classList.remove('active');
+192|          flipped = []; lock = false;
+193|          
+194|          if (matched === 8) {
+195|            sfxWin();
+196|            document.getElementById('finalStats').textContent = 'Completaste em ' + attempts + ' tentativas!';
+197|            document.getElementById('winOverlay').classList.add('active');
+198|            speak('Parabéns! Completaste o jogo da memória!');
+199|          }
+200|        }, 400);
+201|      });
+202|    }, 300);
+203|  } else {
+204|    setTimeout(() => {
+205|      sfxWrong();
+206|      const els = document.querySelectorAll('.card');
+207|      els[a].classList.remove('flipped');
+208|      els[b].classList.remove('flipped');
+209|      flipped = []; lock = false;
+210|    }, 800);
+211|  }
+212|}
+213|</script>
+214|</body>
+215|</html>
+216|
