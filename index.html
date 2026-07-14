@@ -293,9 +293,48 @@ function checkMatch() {
     // Two cards match if they're from the same evolution pair
     if (cards[a].evoPair === cards[b].evoPair && a !== b) {
       match = true;
-      // Show the evolution
-      revealPoke = cards[a];
-      revealText = cards[a].name + ' → ' + cards[a].evoMatch;
+      // Identify which is the base (earlier in evolution)
+      var basePoke=null, evoPoke=null;
+      // Check which one appears first in the EVO_PAIRS definition
+      for(var ei=0;ei<EVO_PAIRS.length;ei++){
+        if(cards[a].name===EVO_PAIRS[ei][0]||cards[b].name===EVO_PAIRS[ei][0]){
+          basePoke=cards[a].name===EVO_PAIRS[ei][0]?cards[a]:cards[b];
+          evoPoke=cards[a].name===EVO_PAIRS[ei][1]?cards[a]:cards[b];
+          break;
+        }
+      }
+      if(!basePoke){basePoke=cards[a];evoPoke=cards[b];}
+      
+      // Show base first, speak evolution, then show evolved
+      document.getElementById('revealImg').src='assets/'+basePoke.file;
+      document.getElementById('revealName').textContent=basePoke.name+' → '+evoPoke.name;
+      document.getElementById('revealEvo').textContent='⬆ '+basePoke.name+' evolui para '+evoPoke.name;
+      document.getElementById('revealOverlay').classList.add('active');
+      var evoSpeech = basePoke.name+' evolves to '+evoPoke.name;
+      speak(evoSpeech,'en-US',function(){
+        setTimeout(function(){
+          document.getElementById('revealImg').src='assets/'+evoPoke.file;
+          document.getElementById('revealName').textContent=evoPoke.name;
+        },300);
+      });
+      // Handle match flow (flip, score, win check)
+      setTimeout(function(){
+        sfxMatch();
+        var els=document.querySelectorAll('.card');
+        els[a].classList.add('matched');
+        els[b].classList.add('matched');
+        matched++;
+        document.getElementById('scoreDisplay').textContent=matched+'/'+(cards.length/2)+' ✓';
+        document.getElementById('revealOverlay').classList.remove('active');
+        flipped=[];lock=false;
+        if(matched===cards.length/2){
+          sfxWin();
+          document.getElementById('finalStats').textContent='Completaste em '+attempts+' tentativas!';
+          document.getElementById('winSub').textContent='Encontraste todas as evoluções!';
+          document.getElementById('winOverlay').classList.add('active');
+          speak('Encontraste todas as evoluções!');
+        }
+      },400);
     }
   } else {
     if (cards[a].name === cards[b].name) {
@@ -305,7 +344,7 @@ function checkMatch() {
     }
   }
   
-  if(match){
+  if(match && !evoMode){
     setTimeout(function(){
       sfxMatch();
       var els=document.querySelectorAll('.card');
