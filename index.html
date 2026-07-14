@@ -322,23 +322,25 @@ function checkMatch() {
       // Show base first, speak evolution, then show evolved
       var evoSpeech = basePoke.name+' evolves to '+evoPoke.name;
       setTimeout(function(){
-        // Set both images — base is visible, evolved is hidden
+        // Show base visible, evolved hidden
         document.getElementById('revealImg').src='assets/'+basePoke.file;
         document.getElementById('revealImg2').src='assets/'+evoPoke.file;
         document.getElementById('revealName').textContent='O quê? '+basePoke.name+' está a evoluir!';
         document.getElementById('revealEvo').textContent='⬆ ???';
         document.getElementById('revealOverlay').classList.add('active');
-        // Start flash + morph animation
-        document.getElementById('revealOverlay').classList.add('evolving');
-        // Speak alongside the animation
-        speak(evoSpeech,'en-US');
-        // After animation completes, show final evolved
+        // Force initial state before animation
+        document.getElementById('revealImg').style.opacity='1';
+        document.getElementById('revealImg2').style.opacity='0';
+        document.getElementById('revealOverlay').classList.remove('evolving');
+        // One frame later: start flash + morph
+        requestAnimationFrame(function(){
+          document.getElementById('revealOverlay').classList.add('evolving');
+          speak(evoSpeech,'en-US');
+        });
+        // After morph completes: show final evolved form
         setTimeout(function(){
           document.getElementById('revealName').textContent='🎉 '+evoPoke.name+'!';
           document.getElementById('revealEvo').textContent='⬆ '+basePoke.name+' → '+evoPoke.name;
-          document.getElementById('revealOverlay').classList.remove('evolving');
-          document.getElementById('revealImg').style.opacity='0';
-          document.getElementById('revealImg2').style.opacity='1';
         },2500);
       },200);
       // Close overlay after full sequence
