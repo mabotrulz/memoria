@@ -306,18 +306,25 @@ function checkMatch() {
       if(!basePoke){basePoke=cards[a];evoPoke=cards[b];}
       
       // Show base first, speak evolution, then show evolved
-      document.getElementById('revealImg').src='assets/'+basePoke.file;
-      document.getElementById('revealName').textContent=basePoke.name+' → '+evoPoke.name;
-      document.getElementById('revealEvo').textContent='⬆ '+basePoke.name+' evolui para '+evoPoke.name;
-      document.getElementById('revealOverlay').classList.add('active');
       var evoSpeech = basePoke.name+' evolves to '+evoPoke.name;
-      speak(evoSpeech,'en-US',function(){
+      setTimeout(function(){
+        document.getElementById('revealImg').src='assets/'+basePoke.file;
+        document.getElementById('revealName').textContent=basePoke.name+' → '+evoPoke.name;
+        document.getElementById('revealEvo').textContent='⬆ '+basePoke.name+' evolui para '+evoPoke.name;
+        document.getElementById('revealOverlay').classList.add('active');
+        // Wait a beat, then speak
         setTimeout(function(){
-          document.getElementById('revealImg').src='assets/'+evoPoke.file;
-          document.getElementById('revealName').textContent=evoPoke.name;
-        },300);
-      });
-      // Handle match flow (flip, score, win check)
+          speak(evoSpeech,'en-US',function(){
+            // After speech, wait then show evolved
+            setTimeout(function(){
+              document.getElementById('revealImg').src='assets/'+evoPoke.file;
+              document.getElementById('revealName').textContent=evoPoke.name;
+              document.getElementById('revealEvo').textContent='⬆ '+basePoke.name+' → '+evoPoke.name;
+            },300);
+          });
+        },600);
+      },200);
+      // Handle match flow after full reveal sequence
       setTimeout(function(){
         sfxMatch();
         var els=document.querySelectorAll('.card');
@@ -334,7 +341,7 @@ function checkMatch() {
           document.getElementById('winOverlay').classList.add('active');
           speak('Encontraste todas as evoluções!');
         }
-      },400);
+      },3500);
     }
   } else {
     if (cards[a].name === cards[b].name) {
