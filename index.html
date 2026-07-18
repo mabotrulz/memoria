@@ -335,6 +335,9 @@ function checkMatch() {
         // One frame later: start flash + morph
         requestAnimationFrame(function(){
           document.getElementById('revealOverlay').classList.add('evolving');
+          // Clear inline opacity so CSS transition takes over
+          document.getElementById('revealImg').style.opacity='';
+          document.getElementById('revealImg2').style.opacity='';
           speak(evoSpeech,'en-US');
         });
         // After morph completes: show final evolved form
