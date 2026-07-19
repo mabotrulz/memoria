@@ -332,14 +332,14 @@ function checkMatch() {
         document.getElementById('revealImg').style.opacity='1';
         document.getElementById('revealImg2').style.opacity='0';
         document.getElementById('revealOverlay').classList.remove('evolving');
-        // One frame later: start flash + morph
-        requestAnimationFrame(function(){
+        // Hold the base Pokémon visible first, then start flash + morph (Game Boy-style sequence)
+        setTimeout(function(){
           document.getElementById('revealOverlay').classList.add('evolving');
           // Clear inline opacity so CSS transition takes over
           document.getElementById('revealImg').style.opacity='';
           document.getElementById('revealImg2').style.opacity='';
           speak(evoSpeech,'en-US');
-        });
+        },1200);
         // After morph completes: show final evolved form
         setTimeout(function(){
           document.getElementById('revealName').textContent='🎉 '+evoPoke.name+'!';
@@ -399,7 +399,7 @@ function checkMatch() {
         },400);
       });
     },300);
-  }else{
+  }else if(!match){
     setTimeout(function(){
       sfxWrong();
       var els=document.querySelectorAll('.card');
