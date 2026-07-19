@@ -6,35 +6,35 @@
 <title>Memória Pokémon</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#1a1a2e;font-family:'Segoe UI',sans-serif;display:flex;justify-content:center;align-items:center;min-height:100dvh;overflow:hidden;user-select:none;touch-action:manipulation}
-.game{width:100vw;height:100dvh;max-width:600px;background:linear-gradient(180deg,#1a1a2e,#16213e,#0f3460);display:flex;flex-direction:column;position:relative;overflow:hidden}
-.header{text-align:center;padding:8px 12px 4px;flex-shrink:0;font-size:clamp(14px,3vw,18px);color:#f1c40f;font-weight:900;letter-spacing:1px;display:flex;justify-content:space-between}
-.header span{font-size:clamp(11px,2.5vw,14px);color:#888;font-weight:400}
-.header .score{color:#4ecca3}
+body{background:#2d1b4e;font-family:'Baloo 2','Comic Sans MS','Chalkboard SE',system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100dvh;overflow:hidden;user-select:none;touch-action:manipulation}
+.game{width:100vw;height:100dvh;max-width:600px;background:linear-gradient(180deg,#6c5ce7 0%,#a55eea 45%,#fd79a8 100%);display:flex;flex-direction:column;position:relative;overflow:hidden}
+.header{text-align:center;padding:8px 12px 4px;flex-shrink:0;font-size:clamp(14px,3vw,18px);color:#ffe259;font-weight:900;letter-spacing:1px;display:flex;justify-content:space-between;text-shadow:0 2px 0 rgba(0,0,0,0.15)}
+.header span{font-size:clamp(11px,2.5vw,14px);color:rgba(255,255,255,0.85);font-weight:600}
+.header .score{color:#ffe259}
 .grid{flex:1;display:grid;gap:clamp(4px,1.5vw,8px);padding:8px;align-content:center;justify-content:center}
 .card{aspect-ratio:1;border-radius:10px;cursor:pointer;perspective:800px}
 .card-inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1)}
 .card.flipped .card-inner,.card.matched .card-inner{transform:rotateY(180deg)}
 .card.removed{visibility:hidden;pointer-events:none}
 .card-front,.card-back{position:absolute;inset:0;border-radius:10px;backface-visibility:hidden;display:flex;align-items:center;justify-content:center}
-.card-back{background:linear-gradient(135deg,#e74c3c,#c0392b);border:2px solid #ff6b6b;font-size:clamp(24px,6vw,40px)}
-.card-back::after{content:'?';font-size:clamp(28px,7vw,48px);font-weight:900;color:rgba(255,255,255,0.3)}
-.card-front{background:#16213e;border:2px solid #4ecca3;transform:rotateY(180deg);padding:4px}
+.card-back{background:linear-gradient(135deg,#a55eea,#6c5ce7);border:2px solid rgba(255,255,255,0.5);font-size:clamp(24px,6vw,40px)}
+.card-back::after{content:'?';font-size:clamp(28px,7vw,48px);font-weight:900;color:rgba(255,255,255,0.35)}
+.card-front{background:#fff;border:2px solid rgba(255,255,255,0.9);transform:rotateY(180deg);padding:4px}
 .card-front img{width:80%;height:80%;object-fit:contain}
-.card.matched .card-front{border-color:#f1c40f;background:rgba(241,196,15,0.1)}
+.card.matched .card-front{border-color:#ffe259;background:rgba(255,226,89,0.3)}
 .card:not(.flipped):not(.matched):hover .card-inner{transform:scale(1.03)}
-.card.evo .card-front{border-color:#9b59b6;background:rgba(155,89,182,0.1)}
-.card.evo.matched .card-front{border-color:#f1c40f}
+.card.evo .card-front{border-color:#fd79a8;background:rgba(253,121,168,0.2)}
+.card.evo.matched .card-front{border-color:#ffe259}
 
-.card.center-piece{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(15,52,96,0.5);border:2px dashed #4ecca3;font-size:clamp(18px,4vw,28px);color:#4ecca3;text-align:center;padding:8px}
-.card.center-piece span{font-size:clamp(10px,2.5vw,14px);color:#888;display:block;margin-top:4px}
+.card.center-piece{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.15);border:2px dashed rgba(255,255,255,0.6);font-size:clamp(18px,4vw,28px);color:#fff;text-align:center;padding:8px}
+.card.center-piece span{font-size:clamp(10px,2.5vw,14px);color:rgba(255,255,255,0.75);display:block;margin-top:4px}
 
-.reveal{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;justify-content:center;align-items:center;background:rgba(10,10,20,0.9);opacity:0;pointer-events:none;transition:opacity 0.3s}
+.reveal{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;justify-content:center;align-items:center;background:linear-gradient(180deg,rgba(108,92,231,0.96),rgba(165,94,234,0.96),rgba(253,121,168,0.96));opacity:0;pointer-events:none;transition:opacity 0.3s}
 .reveal.active{opacity:1;pointer-events:all}
 .reveal .evo-container{position:relative;display:flex;align-items:center;justify-content:center;width:clamp(130px,35vw,240px);height:clamp(130px,35vw,240px);z-index:5}
 .reveal .evo-container img{position:absolute;width:100%;height:100%;object-fit:contain;transition:opacity 0.5s;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3))}
-.reveal .name{font-size:clamp(16px,4vw,28px);font-weight:800;color:#f1c40f;margin-top:10px;text-shadow:0 2px 4px rgba(0,0,0,0.5);z-index:5;text-align:center;padding:0 20px;line-height:1.3}
-.reveal .evo-label{font-size:clamp(13px,3vw,18px);color:#aaa;margin-top:6px;z-index:5;min-height:1.3em;letter-spacing:1px}
+.reveal .name{font-size:clamp(16px,4vw,28px);font-weight:800;color:#ffe259;margin-top:10px;text-shadow:0 2px 4px rgba(0,0,0,0.5);z-index:5;text-align:center;padding:0 20px;line-height:1.3}
+.reveal .evo-label{font-size:clamp(13px,3vw,18px);color:rgba(255,255,255,0.85);margin-top:6px;z-index:5;min-height:1.3em;letter-spacing:1px}
 .reveal .evo-flash{position:absolute;inset:0;background:#fff;pointer-events:none;opacity:0;z-index:10;border-radius:inherit}
 .reveal .evo-container{position:relative;display:flex;align-items:center;justify-content:center;width:clamp(130px,35vw,240px);height:clamp(130px,35vw,240px);z-index:5}
 .reveal .evo-container img{position:absolute;width:100%;height:100%;object-fit:contain;transition:opacity 0.5s;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3))}
